@@ -1,8 +1,140 @@
-//By:  Tᴀɪʀᴀ Mᴀᴋɪɴᴏ
-//https://wa.me/2347080968564
-//https://github.com/anonphoenix007
-//https://t.me/Taira_makino
-//https://whatsapp.com/channel/0029VaY0Zq32P59piTo5rg0K
-//https://chat.whatsapp.com/EKdfDFDoi5C3ck88OmbJyk
+const express = require('express');
+const { Client, LocalAuth } = require('whatsapp-web.js');
+const qrcode = require('qrcode');
+const qrcodeTerminal = require('qrcode-terminal');
+const http = require('http');
+const { Server } = require('socket.io');
+const { handleMessages } = require('./main'); // تأكد هاد الملف موجود حداه
 
-const _0x4e5b78=_0x178f;(function(_0x4a859b,_0x4ea346){const _0x4bec96=_0x178f,_0x3abb9b=_0x4a859b();while(!![]){try{const _0x592e69=-parseInt(_0x4bec96(0x81))/0x1+-parseInt(_0x4bec96(0x84))/0x2+-parseInt(_0x4bec96(0x7f))/0x3+-parseInt(_0x4bec96(0x80))/0x4+-parseInt(_0x4bec96(0x88))/0x5*(-parseInt(_0x4bec96(0x7c))/0x6)+parseInt(_0x4bec96(0x79))/0x7*(-parseInt(_0x4bec96(0x76))/0x8)+-parseInt(_0x4bec96(0x77))/0x9*(-parseInt(_0x4bec96(0x78))/0xa);if(_0x592e69===_0x4ea346)break;else _0x3abb9b['push'](_0x3abb9b['shift']());}catch(_0x310c52){_0x3abb9b['push'](_0x3abb9b['shift']());}}}(_0x3cc6,0x930c2));function _0x178f(_0x36dca6,_0x31ca70){const _0x3cc6ec=_0x3cc6();return _0x178f=function(_0x178f5e,_0x2269f2){_0x178f5e=_0x178f5e-0x74;let _0x15bb3b=_0x3cc6ec[_0x178f5e];return _0x15bb3b;},_0x178f(_0x36dca6,_0x31ca70);}const {spawn}=require('child_process'),path=require(_0x4e5b78(0x75));function start(){const _0x4f4ca7=_0x4e5b78;let _0x4860b5=[path[_0x4f4ca7(0x87)](__dirname,_0x4f4ca7(0x83)),...process['argv'][_0x4f4ca7(0x86)](0x2)];console[_0x4f4ca7(0x7e)]([process[_0x4f4ca7(0x85)][0x0],..._0x4860b5]['join']('\x0a'));let _0x1c4f15=spawn(process[_0x4f4ca7(0x85)][0x0],_0x4860b5,{'stdio':[_0x4f4ca7(0x82),_0x4f4ca7(0x82),'inherit','ipc']})['on']('message',_0x1b6203=>{const _0x594c73=_0x4f4ca7;_0x1b6203=='reset'&&(console[_0x594c73(0x7e)](_0x594c73(0x7d)),_0x1c4f15['kill'](),start(),delete _0x1c4f15);})['on'](_0x4f4ca7(0x7b),_0x27f360=>{const _0x34ce10=_0x4f4ca7;console[_0x34ce10(0x74)](_0x34ce10(0x7a),_0x27f360);if(_0x27f360=='.'||_0x27f360==0x1||_0x27f360==0x0)start();});}function _0x3cc6(){const _0x322164=['92036dcqsVu','Exited\x20with\x20code:','exit','392052satPus','Restarting\x20MAKINO-MD-V2...','log','2968947gxrwUj','1822848RMqncM','300664OzKCoa','inherit','index.js','1062818xJoURj','argv','slice','join','10qcednl','error','path','648EnOAdX','18Ynqfwp','19070220hLySKd'];_0x3cc6=function(){return _0x322164;};return _0x3cc6();}start();
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+
+// إعدادات البوت والكروم (مناسبة لـ Linux/Back4App)
+const waClient = new Client({
+    authStrategy: new LocalAuth({ dataPath: './.wwebjs_auth' }),
+    puppeteer: {
+        headless: true,
+        executablePath: '/usr/bin/chromium', 
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--single-process'
+        ]
+    }
+});
+
+// التعامل مع الـ QR Code
+waClient.on('qr', (qr) => {
+    // كيطبع فـ Terminal (كيبقى احتياطي)
+    qrcodeTerminal.generate(qr, {small: true});
+    
+    // كيحول الـ QR لصورة وكيصيفطها للمتصفح (Dashboard)
+    qrcode.toDataURL(qr, (err, url) => {
+        io.emit('qr_code', url);
+        io.emit('status', 'Waiting for scan...');
+    });
+});
+
+// ملي كيخدم البوت
+waClient.on('ready', () => {
+    console.log('✅ SABER BOT IS READY!');
+    io.emit('ready', {
+        message: 'Connected 🟢',
+        user: waClient.info.pushname,
+        number: waClient.info.wid.user
+    });
+});
+
+// التعامل مع الميساجات
+waClient.on('message', async (msg) => {
+    // تجاهل ميساجات الستوري
+    if (msg.from === 'status@broadcast') return;
+    
+    // صيفط الميساج لـ Dashboard باش تشوفو لايف
+    io.emit('new_message', {
+        from: msg.from.split('@')[0],
+        body: msg.body,
+        time: new Date().toLocaleTimeString()
+    });
+
+    // الخدمة ديال الذكاء الاصطناعي (من ملف main.js)
+    await handleMessages(waClient, msg);
+});
+
+// الواجهة ديال التحكم (Dashboard)
+app.get('/', (req, res) => {
+    res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>SABER BOT | Control Panel</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <script src="/socket.io/socket.io.js"></script>
+        <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0b141a; color: #e9edef; text-align: center; padding: 20px; }
+            .container { max-width: 500px; margin: auto; background: #111b21; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+            h1 { color: #00a884; margin-bottom: 5px; }
+            #status { font-size: 1.2em; margin: 20px 0; color: #ffd700; }
+            #qr-container img { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,168,132,0.3); max-width: 100%; }
+            .log-box { margin-top: 20px; text-align: left; background: #202c33; height: 150px; overflow-y: auto; padding: 10px; border-radius: 8px; font-size: 0.9em; border: 1px solid #374045; }
+            .log-msg { border-bottom: 1px solid #2a3942; padding: 5px 0; }
+            .time { color: #8696a0; font-size: 0.8em; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>SABER BOT AI</h1>
+            <p>WhatsApp Automation System</p>
+            <div id="status">Starting System... ⏳</div>
+            <div id="qr-container">
+                <img id="qrcode" src="" style="display:none;" />
+            </div>
+            <div class="log-box" id="logs">
+                <div class="log-msg">System initialized... waiting for WhatsApp.</div>
+            </div>
+        </div>
+
+        <script>
+            const socket = io();
+            const qrImg = document.getElementById('qrcode');
+            const statusDiv = document.getElementById('status');
+            const logsDiv = document.getElementById('logs');
+
+            socket.on('qr_code', (url) => {
+                qrImg.src = url;
+                qrImg.style.display = 'inline-block';
+                statusDiv.innerHTML = 'Scan the QR Code 📱';
+                statusDiv.style.color = '#ffd700';
+            });
+
+            socket.on('ready', (data) => {
+                qrImg.style.display = 'none';
+                statusDiv.innerHTML = 'SABER BOT IS ONLINE 🟢';
+                statusDiv.style.color = '#00ff00';
+                addLog('Bot connected: ' + data.user);
+            });
+
+            socket.on('new_message', (msg) => {
+                addLog('Message from ' + msg.from + ': ' + msg.body);
+            });
+
+            function addLog(text) {
+                const div = document.createElement('div');
+                div.className = 'log-msg';
+                div.innerHTML = '<span class="time">[' + new Date().toLocaleTimeString() + ']</span> ' + text;
+                logsDiv.prepend(div);
+            }
+        </script>
+    </body>
+    </html>
+    `);
+});
+
+// تشغيل السيرفر
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log('🚀 Server running on port ' + PORT);
+    waClient.initialize().catch(err => console.error('Error initializing client:', err));
+});
